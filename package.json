@@ -1,6 +1,11 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "devhub",
   "private": true,
+  "description": "DevHub — collaborate and ship with your team.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Arpita577-byte/DevHub.git"
+  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
