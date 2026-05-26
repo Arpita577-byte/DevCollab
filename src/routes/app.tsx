@@ -116,18 +116,20 @@ function AppPage() {
             {projects.length === 0 && <p className="text-xs text-muted-foreground px-3">No projects yet.</p>}
           </div>
         </div>
-        <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm">
-          <span className="truncate text-muted-foreground">{user?.email}</span>
+        <div className="p-3 border-t border-border/50 flex items-center gap-1 text-sm">
+          <span className="truncate text-muted-foreground flex-1 text-xs">{user?.email}</span>
+          {activeWs && <UpgradeDialog workspaceId={activeWs.id} />}
+          <NotificationsBell />
+          <Button size="icon" variant="ghost" asChild><Link to="/profile"><User className="h-4 w-4" /></Link></Button>
           <Button size="icon" variant="ghost" onClick={() => { signOut(); navigate({ to: "/" }); }}><LogOut className="h-4 w-4" /></Button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
-        {activeProject ? <ProjectView project={activeProject} /> : (
+        {activeProject && activeWs ? <ProjectView project={activeProject} workspaceId={activeWs.id} /> : activeWs ? (
+          <div className="p-6"><MembersPanel workspaceId={activeWs.id} /></div>
+        ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p>Create a project to get started.</p>
-            </div>
+            <div className="text-center"><FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Create a project to get started.</p></div>
           </div>
         )}
       </main>
@@ -206,30 +208,53 @@ function CreateProjectDialog({ workspaceId, onCreated }: { workspaceId: string; 
   );
 }
 
-function ProjectView({ project }: { project: Project }) {
+function ProjectView({ project, workspaceId }: { project: Project; workspaceId: string }) {
+  const { user } = useAuth();
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <span className="h-3 w-3 rounded-full" style={{ background: project.color || "#6366f1" }} />
-        <h1 className="font-display text-2xl font-bold">{project.name}</h1>
+        <h1 className="font-display text-2xl font-bold flex-1">{project.name}</h1>
+        <PresenceBadge channelKey={`project:${project.id}`} displayName={user?.email?.split("@")[0] ?? "Someone"} />
       </div>
       <Tabs defaultValue="board">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="board"><KanbanSquare className="h-4 w-4 mr-2" />Board</TabsTrigger>
+          <TabsTrigger value="calendar"><CalendarDays className="h-4 w-4 mr-2" />Calendar</TabsTrigger>
+          <TabsTrigger value="wiki"><BookOpen className="h-4 w-4 mr-2" />Wiki</TabsTrigger>
           <TabsTrigger value="snippets"><Code2 className="h-4 w-4 mr-2" />Snippets</TabsTrigger>
-          <TabsTrigger value="ai"><Sparkles className="h-4 w-4 mr-2" />AI Assistant</TabsTrigger>
+          <TabsTrigger value="ai"><Sparkles className="h-4 w-4 mr-2" />AI</TabsTrigger>
+          <TabsTrigger value="members"><Users className="h-4 w-4 mr-2" />Members</TabsTrigger>
+          <TabsTrigger value="activity"><ActivityIcon className="h-4 w-4 mr-2" />Activity</TabsTrigger>
         </TabsList>
-        <TabsContent value="board" className="mt-4"><KanbanBoard project={project} /></TabsContent>
+        <TabsContent value="board" className="mt-4"><KanbanBoard project={project} workspaceId={workspaceId} /></TabsContent>
+        <TabsContent value="calendar" className="mt-4"><CalendarTab projectId={project.id} /></TabsContent>
+        <TabsContent value="wiki" className="mt-4"><WikiPanel projectId={project.id} /></TabsContent>
         <TabsContent value="snippets" className="mt-4"><SnippetsPanel project={project} /></TabsContent>
         <TabsContent value="ai" className="mt-4"><AiPanel project={project} /></TabsContent>
+        <TabsContent value="members" className="mt-4"><MembersPanel workspaceId={workspaceId} /></TabsContent>
+        <TabsContent value="activity" className="mt-4"><ActivityFeed workspaceId={workspaceId} projectFilter={project.id} /></TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function KanbanBoard({ project }: { project: Project }) {
+function CalendarTab({ projectId }: { projectId: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId);
+      setTasks((data as Task[]) ?? []);
+    })();
+  }, [projectId]);
+  return <CalendarView tasks={tasks} />;
+}
+
+function KanbanBoard({ project, workspaceId }: { project: Project; workspaceId: string }) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [drag, setDrag] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Task | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("tasks").select("*").eq("project_id", project.id).order("position");
