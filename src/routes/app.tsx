@@ -100,7 +100,7 @@ function AppPage() {
             {projects.map(p => (
               <button key={p.id} onClick={() => setActiveProject(p)}
                 className={`w-full text-left rounded-md px-3 py-2 text-sm flex items-center gap-2 transition-colors ${activeProject?.id === p.id ? "bg-primary/15 text-foreground" : "hover:bg-muted text-muted-foreground"}`}>
-                <span className="h-2 w-2 rounded-full" style={{ background: p.color ?? "#6366f1" }} />
+                <span className="h-2 w-2 rounded-full" style={{ background: p.color || "#6366f1" }} />
                 <span className="truncate">{p.name}</span>
               </button>
             ))}
