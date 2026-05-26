@@ -24,7 +24,7 @@ export const Route = createFileRoute("/app")({
 });
 
 type Workspace = { id: string; name: string; slug: string };
-type Project = { id: string; name: string; description: string | null; color: string };
+type Project = { id: string; name: string; description: string | null; color: string | null };
 type Task = {
   id: string; title: string; description: string | null;
   status: "todo" | "in_progress" | "in_review" | "done";
