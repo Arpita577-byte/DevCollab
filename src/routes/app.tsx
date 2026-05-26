@@ -201,7 +201,7 @@ function ProjectView({ project }: { project: Project }) {
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <span className="h-3 w-3 rounded-full" style={{ background: project.color ?? "#6366f1" }} />
+        <span className="h-3 w-3 rounded-full" style={{ background: project.color || "#6366f1" }} />
         <h1 className="font-display text-2xl font-bold">{project.name}</h1>
       </div>
       <Tabs defaultValue="board">
