@@ -61,8 +61,8 @@ export function TaskDetailDialog({ task, workspaceId, open, onOpenChange, onChan
     setBody("");
   };
 
-  const updateField = async (patch: Partial<Task>) => {
-    await supabase.from("tasks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", task.id);
+  const updateField = async (patch: Record<string, unknown>) => {
+    await supabase.from("tasks").update({ ...patch, updated_at: new Date().toISOString() } as never).eq("id", task.id);
     if (patch.assignee_id && patch.assignee_id !== user?.id) {
       await supabase.from("notifications").insert({
         user_id: patch.assignee_id, actor_id: user?.id, type: "assignment", title: `Assigned to "${task.title}"`, link: "/app", workspace_id: workspaceId,

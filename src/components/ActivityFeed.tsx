@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Activity } from "lucide-react";
 
-type Item = { id: string; action: string; metadata: Record<string, unknown> | null; created_at: string; actor_id: string; project_id: string | null };
+type Item = { id: string; action: string; metadata: unknown; created_at: string; actor_id: string; project_id: string | null };
 
 export function ActivityFeed({ workspaceId, projectFilter }: { workspaceId: string; projectFilter?: string | null }) {
   const [items, setItems] = useState<Item[]>([]);
@@ -46,6 +46,6 @@ export function ActivityFeed({ workspaceId, projectFilter }: { workspaceId: stri
   );
 }
 
-export async function logActivity(workspaceId: string, actorId: string, action: string, projectId?: string, metadata?: Record<string, unknown>) {
-  await supabase.from("activities").insert({ workspace_id: workspaceId, actor_id: actorId, action, project_id: projectId ?? null, metadata: metadata ?? null });
+export async function logActivity(workspaceId: string, actorId: string, action: string, projectId?: string) {
+  await supabase.from("activities").insert({ workspace_id: workspaceId, actor_id: actorId, action, project_id: projectId ?? null });
 }
