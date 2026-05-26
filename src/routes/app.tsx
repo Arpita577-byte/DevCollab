@@ -38,6 +38,7 @@ type Task = {
   id: string; title: string; description: string | null;
   status: "todo" | "in_progress" | "in_review" | "done";
   priority: "P0" | "P1" | "P2"; project_id: string; position: number;
+  assignee_id: string | null; due_date: string | null;
 };
 type Snippet = { id: string; title: string; language: string; code: string; description: string | null; tags: string[] | null };
 
