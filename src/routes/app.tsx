@@ -13,9 +13,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/Logo";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { WikiPanel } from "@/components/WikiPanel";
+import { MembersPanel } from "@/components/MembersPanel";
+import { ActivityFeed, logActivity } from "@/components/ActivityFeed";
+import { CalendarView } from "@/components/CalendarView";
+import { PresenceBadge } from "@/components/PresenceBadge";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 import { toast } from "sonner";
 import {
   Plus, Loader2, LogOut, KanbanSquare, Code2, Sparkles, Copy, Trash2, FolderKanban,
+  BookOpen, Users, Activity as ActivityIcon, CalendarDays, User,
 } from "lucide-react";
 
 export const Route = createFileRoute("/app")({
@@ -29,6 +38,7 @@ type Task = {
   id: string; title: string; description: string | null;
   status: "todo" | "in_progress" | "in_review" | "done";
   priority: "P0" | "P1" | "P2"; project_id: string; position: number;
+  assignee_id: string | null; due_date: string | null;
 };
 type Snippet = { id: string; title: string; language: string; code: string; description: string | null; tags: string[] | null };
 
@@ -107,18 +117,20 @@ function AppPage() {
             {projects.length === 0 && <p className="text-xs text-muted-foreground px-3">No projects yet.</p>}
           </div>
         </div>
-        <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm">
-          <span className="truncate text-muted-foreground">{user?.email}</span>
+        <div className="p-3 border-t border-border/50 flex items-center gap-1 text-sm">
+          <span className="truncate text-muted-foreground flex-1 text-xs">{user?.email}</span>
+          {activeWs && <UpgradeDialog workspaceId={activeWs.id} />}
+          <NotificationsBell />
+          <Button size="icon" variant="ghost" asChild><Link to="/profile"><User className="h-4 w-4" /></Link></Button>
           <Button size="icon" variant="ghost" onClick={() => { signOut(); navigate({ to: "/" }); }}><LogOut className="h-4 w-4" /></Button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
-        {activeProject ? <ProjectView project={activeProject} /> : (
+        {activeProject && activeWs ? <ProjectView project={activeProject} workspaceId={activeWs.id} /> : activeWs ? (
+          <div className="p-6"><MembersPanel workspaceId={activeWs.id} /></div>
+        ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p>Create a project to get started.</p>
-            </div>
+            <div className="text-center"><FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Create a project to get started.</p></div>
           </div>
         )}
       </main>
@@ -197,30 +209,53 @@ function CreateProjectDialog({ workspaceId, onCreated }: { workspaceId: string; 
   );
 }
 
-function ProjectView({ project }: { project: Project }) {
+function ProjectView({ project, workspaceId }: { project: Project; workspaceId: string }) {
+  const { user } = useAuth();
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <span className="h-3 w-3 rounded-full" style={{ background: project.color || "#6366f1" }} />
-        <h1 className="font-display text-2xl font-bold">{project.name}</h1>
+        <h1 className="font-display text-2xl font-bold flex-1">{project.name}</h1>
+        <PresenceBadge channelKey={`project:${project.id}`} displayName={user?.email?.split("@")[0] ?? "Someone"} />
       </div>
       <Tabs defaultValue="board">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="board"><KanbanSquare className="h-4 w-4 mr-2" />Board</TabsTrigger>
+          <TabsTrigger value="calendar"><CalendarDays className="h-4 w-4 mr-2" />Calendar</TabsTrigger>
+          <TabsTrigger value="wiki"><BookOpen className="h-4 w-4 mr-2" />Wiki</TabsTrigger>
           <TabsTrigger value="snippets"><Code2 className="h-4 w-4 mr-2" />Snippets</TabsTrigger>
-          <TabsTrigger value="ai"><Sparkles className="h-4 w-4 mr-2" />AI Assistant</TabsTrigger>
+          <TabsTrigger value="ai"><Sparkles className="h-4 w-4 mr-2" />AI</TabsTrigger>
+          <TabsTrigger value="members"><Users className="h-4 w-4 mr-2" />Members</TabsTrigger>
+          <TabsTrigger value="activity"><ActivityIcon className="h-4 w-4 mr-2" />Activity</TabsTrigger>
         </TabsList>
-        <TabsContent value="board" className="mt-4"><KanbanBoard project={project} /></TabsContent>
+        <TabsContent value="board" className="mt-4"><KanbanBoard project={project} workspaceId={workspaceId} /></TabsContent>
+        <TabsContent value="calendar" className="mt-4"><CalendarTab projectId={project.id} /></TabsContent>
+        <TabsContent value="wiki" className="mt-4"><WikiPanel projectId={project.id} /></TabsContent>
         <TabsContent value="snippets" className="mt-4"><SnippetsPanel project={project} /></TabsContent>
         <TabsContent value="ai" className="mt-4"><AiPanel project={project} /></TabsContent>
+        <TabsContent value="members" className="mt-4"><MembersPanel workspaceId={workspaceId} /></TabsContent>
+        <TabsContent value="activity" className="mt-4"><ActivityFeed workspaceId={workspaceId} projectFilter={project.id} /></TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function KanbanBoard({ project }: { project: Project }) {
+function CalendarTab({ projectId }: { projectId: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId);
+      setTasks((data as Task[]) ?? []);
+    })();
+  }, [projectId]);
+  return <CalendarView tasks={tasks} />;
+}
+
+function KanbanBoard({ project, workspaceId }: { project: Project; workspaceId: string }) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [drag, setDrag] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Task | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("tasks").select("*").eq("project_id", project.id).order("position");
@@ -235,11 +270,14 @@ function KanbanBoard({ project }: { project: Project }) {
   }, [project.id]);
 
   const moveTask = async (id: string, status: Task["status"]) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status } : t));
+    const t = tasks.find(x => x.id === id);
+    setTasks(tasks.map(x => x.id === id ? { ...x, status } : x));
     await supabase.from("tasks").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    if (user && t) logActivity(workspaceId, user.id, `moved "${t.title}" to ${status}`, project.id);
   };
 
   return (
+    <>
     <div className="grid grid-cols-4 gap-4">
       {COLUMNS.map(col => (
         <div key={col.id}
@@ -252,13 +290,14 @@ function KanbanBoard({ project }: { project: Project }) {
           </div>
           <div className="space-y-2">
             {tasks.filter(t => t.status === col.id).map(t => (
-              <div key={t.id} draggable onDragStart={() => setDrag(t.id)}
-                className="rounded-lg bg-surface-elevated border border-border/50 p-3 cursor-grab hover:border-primary/40 transition-colors">
+              <div key={t.id} draggable onDragStart={() => setDrag(t.id)} onClick={() => setSelected(t)}
+                className="rounded-lg bg-surface-elevated border border-border/50 p-3 cursor-pointer hover:border-primary/40 transition-colors">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <p className="text-sm font-medium leading-snug">{t.title}</p>
                   <Badge variant="outline" className={`text-[10px] shrink-0 ${t.priority === "P0" ? "border-destructive/50 text-destructive" : t.priority === "P1" ? "border-warning/50 text-warning" : ""}`}>{t.priority}</Badge>
                 </div>
                 {t.description && <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>}
+                {t.due_date && <p className="text-[10px] text-muted-foreground mt-1">Due {t.due_date}</p>}
               </div>
             ))}
             {col.id === "todo" && <NewTaskInline projectId={project.id} onCreated={load} />}
@@ -266,6 +305,8 @@ function KanbanBoard({ project }: { project: Project }) {
         </div>
       ))}
     </div>
+    <TaskDetailDialog task={selected} workspaceId={workspaceId} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} onChange={load} />
+    </>
   );
 }
 
