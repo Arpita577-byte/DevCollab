@@ -270,11 +270,14 @@ function KanbanBoard({ project, workspaceId }: { project: Project; workspaceId: 
   }, [project.id]);
 
   const moveTask = async (id: string, status: Task["status"]) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status } : t));
+    const t = tasks.find(x => x.id === id);
+    setTasks(tasks.map(x => x.id === id ? { ...x, status } : x));
     await supabase.from("tasks").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    if (user && t) logActivity(workspaceId, user.id, `moved "${t.title}" to ${status}`, project.id);
   };
 
   return (
+    <>
     <div className="grid grid-cols-4 gap-4">
       {COLUMNS.map(col => (
         <div key={col.id}
@@ -287,13 +290,14 @@ function KanbanBoard({ project, workspaceId }: { project: Project; workspaceId: 
           </div>
           <div className="space-y-2">
             {tasks.filter(t => t.status === col.id).map(t => (
-              <div key={t.id} draggable onDragStart={() => setDrag(t.id)}
-                className="rounded-lg bg-surface-elevated border border-border/50 p-3 cursor-grab hover:border-primary/40 transition-colors">
+              <div key={t.id} draggable onDragStart={() => setDrag(t.id)} onClick={() => setSelected(t)}
+                className="rounded-lg bg-surface-elevated border border-border/50 p-3 cursor-pointer hover:border-primary/40 transition-colors">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <p className="text-sm font-medium leading-snug">{t.title}</p>
                   <Badge variant="outline" className={`text-[10px] shrink-0 ${t.priority === "P0" ? "border-destructive/50 text-destructive" : t.priority === "P1" ? "border-warning/50 text-warning" : ""}`}>{t.priority}</Badge>
                 </div>
                 {t.description && <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>}
+                {t.due_date && <p className="text-[10px] text-muted-foreground mt-1">Due {t.due_date}</p>}
               </div>
             ))}
             {col.id === "todo" && <NewTaskInline projectId={project.id} onCreated={load} />}
@@ -301,6 +305,8 @@ function KanbanBoard({ project, workspaceId }: { project: Project; workspaceId: 
         </div>
       ))}
     </div>
+    <TaskDetailDialog task={selected} workspaceId={workspaceId} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} onChange={load} />
+    </>
   );
 }
 
