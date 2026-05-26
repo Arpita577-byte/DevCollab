@@ -13,9 +13,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/Logo";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { WikiPanel } from "@/components/WikiPanel";
+import { MembersPanel } from "@/components/MembersPanel";
+import { ActivityFeed, logActivity } from "@/components/ActivityFeed";
+import { CalendarView } from "@/components/CalendarView";
+import { PresenceBadge } from "@/components/PresenceBadge";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 import { toast } from "sonner";
 import {
   Plus, Loader2, LogOut, KanbanSquare, Code2, Sparkles, Copy, Trash2, FolderKanban,
+  BookOpen, Users, Activity as ActivityIcon, CalendarDays, User,
 } from "lucide-react";
 
 export const Route = createFileRoute("/app")({
