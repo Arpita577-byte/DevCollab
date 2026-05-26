@@ -65,7 +65,8 @@ export function TaskDetailDialog({ task, workspaceId, open, onOpenChange, onChan
     await supabase.from("tasks").update({ ...patch, updated_at: new Date().toISOString() } as never).eq("id", task.id);
     if (patch.assignee_id && patch.assignee_id !== user?.id) {
       await supabase.from("notifications").insert({
-        user_id: patch.assignee_id, actor_id: user?.id, type: "assignment", title: `Assigned to "${task.title}"`, link: "/app", workspace_id: workspaceId,
+        user_id: patch.assignee_id as string, actor_id: user?.id, type: "assignment",
+        title: `Assigned to "${task.title}"`, link: "/app", workspace_id: workspaceId,
       });
     }
     onChange();
