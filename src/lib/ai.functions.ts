@@ -2,14 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GATEWAY = process.env.AI_API_URL;
 
 async function callAI(system: string, user: string) {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("AI not configured");
+  const key = process.env.AI_API_KEY;
+  if (!GATEWAY || !key) throw new Error("AI not configured");
   const res = await fetch(GATEWAY, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
